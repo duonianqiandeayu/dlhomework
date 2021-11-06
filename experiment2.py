@@ -1,8 +1,10 @@
 import os
 import torch
+import tqdm
 from torch import nn
 import numpy as np
 import matplotlib.pyplot as plt
+import torchvision
 # import torch.utils.tensorboard
 # import tensorboardX
 # from tensorboardX import SummaryWriter
@@ -67,9 +69,17 @@ class ResNet34(nn.Module):
         return x
 
 
+
+def init_weights(m):
+    if type(m) == nn.Linear:
+        nn.init.normal_(m.weight, std=0.01)
+
+
+
 if __name__ == "__main__":
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    lr , epoch_num, batch_size = 0.0002, 20, 1000
+    lr , epoch_num, batch_size, num_workers = 0.0005, 40, 1000, 6
 
     train_transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -79,7 +89,7 @@ if __name__ == "__main__":
     ])
     train_dir ="../ImageData2/train"
     train_dataset = ImageFolder(root=train_dir, transform=train_transform)
-    train_iter = torch.utils.data.DataLoader(train_dataset,batch_size=batch_size, shuffle=True)
+    train_iter = torch.utils.data.DataLoader(train_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers)
     print(f'train dataset length: {len(train_dataset)}')
 
     train_transform = transforms.Compose([
@@ -89,16 +99,28 @@ if __name__ == "__main__":
     ])
     valid_dir = "../ImageData2/val"
     valid_dataset = ImageFolder(root=valid_dir, transform=train_transform)
-    valid_iter = torch.utils.data.DataLoader(valid_dataset,batch_size=batch_size, shuffle=True)
+    valid_iter = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     print(f'val dataset length: {len(valid_dataset)}')
 
+    resnet34 = torchvision.models.resnet34(pretrained=True)
+    predict_dict = resnet34.state_dict()
+
+    net = ResNet34()
+    net_dict = net.state_dict()
+    # for k, v in predict_dict.items():
+    #     print(k, v.shape)
+    predict_dict = {k: v for k, v in predict_dict.items() if k in net_dict and (k != "fc.weight" and k != "fc.bias")}
+    net_dict.update(predict_dict)
+    net.load_state_dict(net_dict)
+
+    net.apply(init_weights)
     net = ResNet34().to(device)
     loss = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     history = []
     best_acc = 0.0
-    best_epoch= 0
+    best_epoch = 0
     for epoch in range(epoch_num):
         epoch_start = time.time()
         print("epoch: {}/{}".format(epoch+1, epoch_num))
