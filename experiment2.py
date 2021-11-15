@@ -1,14 +1,9 @@
-import os
+
 import torch
-import tqdm
 from torch import nn
 import numpy as np
 import matplotlib.pyplot as plt
 import torchvision
-# import torch.utils.tensorboard
-# import tensorboardX
-# from tensorboardX import SummaryWriter
-from PIL import Image
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as transforms
 import torch.nn.functional as F
@@ -44,7 +39,9 @@ class ResNet34(nn.Module):
         self.layer2 = nn.Sequential(*self.make_layer(Residual, 64, 128, 4))
         self.layer3 = nn.Sequential(*self.make_layer(Residual, 128, 256, 6))
         self.layer4 = nn.Sequential(*self.make_layer(Residual, 256, 512, 3))
-        self.fc = nn.Linear(512, num_classes)
+        self.fc1 = nn.Linear(512, 256)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(256, num_classes)
 
     def make_layer(self, block, input_channels, num_channels, num_residuals, first_block=False):
         blk = []
@@ -65,15 +62,17 @@ class ResNet34(nn.Module):
 
         x = F.avg_pool2d(x, 2)   #1x1x512
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        x = F.relu(self.fc1(x))
+        if self.training:
+            # 在第一个全连接层之后添加一个dropout层
+            x = self.dropout(x)
+        x = self.fc2(x)
         return x
-
 
 
 def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.normal_(m.weight, std=0.01)
-
 
 
 if __name__ == "__main__":
@@ -106,6 +105,7 @@ if __name__ == "__main__":
     predict_dict = resnet34.state_dict()
 
     net = ResNet34()
+    # print(net)
     net_dict = net.state_dict()
     # for k, v in predict_dict.items():
     #     print(k, v.shape)
@@ -174,20 +174,25 @@ if __name__ == "__main__":
 
     history = np.array(history)
     np.save('history.npy', history)
+
     plt.plot(history[:, 0], history[:, 1:3])
     plt.legend(['train loss', 'valid loss'])
     plt.xlabel('epoch num')
     plt.ylabel('loss')
-    plt.ylim(0, 1.1)
-    plt.savefig('loss_curve.png')
-    # plt.show()
+    plt.ylim(0, 5)
+    plt.grid()
+    plt.savefig('./save/ex2fig/loss_curve.png')
+    plt.show()
 
+    plt.cla()
     plt.plot(history[:, 0], history[:, 3:5])
     plt.legend(['train acc', 'valid acc'])
     plt.xlabel('epoch num')
     plt.ylabel('acc')
-    plt.ylim(0, 1.1)
-    plt.savefig('acc_curve.png')
+    plt.ylim(0, 1)
+    plt.grid()
+    plt.savefig('./save/ex2fig/acc_curve.png')
+    plt.show()
     # plt.show()
 
 
