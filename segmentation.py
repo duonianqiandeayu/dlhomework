@@ -21,7 +21,6 @@ print('/'.join(seg_list))
 dict_set = set()
 
 for content in reviews:
-
     seg_list = jieba.cut(content, cut_all='True')
     for s in seg_list:
         dict_set.add(s)
@@ -34,6 +33,6 @@ for s in dict_set:
     i+=1
 
 dict_txt = dict(dict_list)
-with open("dic.txt", "w", encoding='utf=8') as f:
+with open("dict.txt", "w", encoding='utf=8') as f:
     f.write(str(dict_txt))
 
